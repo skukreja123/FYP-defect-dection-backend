@@ -1,7 +1,7 @@
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
-from models.Contact import insert_contact, get_all_contacts, delete_contact, update_contact
+from models.Contact import insert_contact, get_all_contacts
 from Utils.JWTtoken import token_required
 
 

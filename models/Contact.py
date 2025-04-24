@@ -43,3 +43,4 @@ def get_all_contacts():
     conn.close()
     return contacts
 
+
