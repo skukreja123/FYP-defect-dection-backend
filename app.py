@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from routes.video import video_bp
 from routes.image import image_bp
@@ -12,12 +12,17 @@ app.config.from_object('config.Config')
 CORS(app)
 
 create_user_table()
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Flask server is running."})
+
 
 # Register Blueprints
 app.register_blueprint(video_bp, url_prefix='/video')
 app.register_blueprint(image_bp, url_prefix='/image')
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(contact_bp, url_prefix='/contact')
+
 
 if __name__ == '__main__':
     port = Config.PORT
