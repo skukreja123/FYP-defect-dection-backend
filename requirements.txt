@@ -6,3 +6,28 @@ pyjwt
 python-dotenv
 gdown
 gunicorn
+# Flask web framework
+Flask==2.2.5
+
+# PyTorch and torchvision for deep learning
+torch==2.1.0
+torchvision==0.16.0
+
+# TensorFlow for loading Keras model
+tensorflow==2.14.0
+
+# Image and video processing
+opencv-python==4.8.1.78
+Pillow==9.5.0
+
+# Array and numerical operations
+numpy==1.23.5
+
+# Google Drive downloader
+gdown==4.7.1
+
+# Load environment variables from .env file
+python-dotenv==1.0.0
+
+# For production deployment (optional)
+gunicorn==20.1.0
