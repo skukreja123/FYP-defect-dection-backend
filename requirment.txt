@@ -5,3 +5,5 @@ bcrypt
 pyjwt
 python-dotenv
 gdown
+Flask
+gunicorn
