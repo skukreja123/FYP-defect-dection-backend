@@ -12,7 +12,6 @@ from torchvision import models, transforms
 import json
 import urllib.request
 import os
-import gdown
 from dotenv import load_dotenv
 from config import Config
 
@@ -25,26 +24,27 @@ image_bp = Blueprint('image', __name__)
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-# ---------------- Model Download from Google Drive ----------------
+# ---------------- Model Download from AWS S3 ----------------
 MODEL_DIR = './models'
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-pthid = Config.GDRIVE_MODEL_ID
-h5id = Config.h5py_model_ID
+pth_url = Config.S3_PTH_MODEL_URL
+h5_url = Config.S3_H5_MODEL_URL
 
 pth_model_path = os.path.join(MODEL_DIR, 'resnet_model.pth')
 h5_model_path = os.path.join(MODEL_DIR, 'keras_model.h5')
 
-if not pthid or not h5id:
-    raise EnvironmentError("❌ Google Drive model IDs not set in .env")
+if not pth_url or not h5_url:
+    raise EnvironmentError("❌ S3 model URLs not set in .env")
 
-if not os.path.exists(pth_model_path):
-    logging.info("⬇️ Downloading PyTorch model...")
-    gdown.download(f"https://drive.google.com/uc?id={pthid}", pth_model_path, quiet=False)
+def download_file(url, local_path):
+    if not os.path.exists(local_path):
+        logging.info(f"⬇️ Downloading {local_path} from S3...")
+        urllib.request.urlretrieve(url, local_path)
+        logging.info(f"✅ Downloaded {local_path} successfully.")
 
-if not os.path.exists(h5_model_path):
-    logging.info("⬇️ Downloading Keras model...")
-    gdown.download(f"https://drive.google.com/uc?id={h5id}", h5_model_path, quiet=False)
+download_file(pth_url, pth_model_path)
+download_file(h5_url, h5_model_path)
 
 # ---------------- Load Keras Model ----------------
 try:
@@ -82,6 +82,7 @@ imagenet_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
+
 
 # ---------------- Class Labels ----------------
 class_labels_model1 = ['Good', 'Objects', 'Hole', 'Oil Spot', 'Thread Error']

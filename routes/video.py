@@ -9,9 +9,8 @@ import base64
 import logging
 import os
 import tempfile
-import gdown
+import urllib.request
 from config import Config
-
 
 # Initialize Blueprint
 video_bp = Blueprint('video', __name__)
@@ -24,25 +23,24 @@ class_labels = ['vertical', 'defect', 'hole', 'horizontal', 'lines', 'stain']
 num_classes = len(class_labels)
 CONFIDENCE_THRESHOLD = 0.6
 
-# Get Google Drive File ID from environment variable
-GDRIVE_FILE_ID = Config.GDRIVE_MODEL_ID
-if not GDRIVE_FILE_ID:
-    raise EnvironmentError("❌ Environment variable 'GDRIVE_MODEL_ID' not set!")
-
+# Get S3 URL from environment variable
+S3_PTH_MODEL_URL = Config.S3_PTH_MODEL_URL
 MODEL_LOCAL_PATH = "./models/mixeddataset_resnet_classweights.pth"
 os.makedirs(os.path.dirname(MODEL_LOCAL_PATH), exist_ok=True)
 
+if not S3_PTH_MODEL_URL:
+    raise EnvironmentError("❌ Environment variable 'S3_PTH_MODEL_URL' not set!")
 
-# Function to download model from Google Drive
-def download_model_from_drive():
+# Download model from S3
+def download_model_from_s3():
     if not os.path.exists(MODEL_LOCAL_PATH):
-        url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
-        logging.info("⬇️ Downloading model from Google Drive...")
-        gdown.download(url, MODEL_LOCAL_PATH, quiet=False)
+        logging.info("⬇️ Downloading model from S3...")
+        urllib.request.urlretrieve(S3_PTH_MODEL_URL, MODEL_LOCAL_PATH)
         logging.info("✅ Model downloaded successfully.")
 
-# Download and load model
-download_model_from_drive()
+download_model_from_s3()
+
+# Load model
 model = models.resnet18(pretrained=False)
 model.fc = nn.Linear(model.fc.in_features, num_classes)
 try:
@@ -53,6 +51,8 @@ try:
 except Exception as e:
     logging.error(f"❌ Failed to load model: {e}")
     model = None
+
+
 
 # Frame preprocessing
 transform = transforms.Compose([
