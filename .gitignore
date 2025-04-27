@@ -6,4 +6,3 @@ venv/
 .DS_Store
 *.log
 models/*.h5
-models/*.pth
