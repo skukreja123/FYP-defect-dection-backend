@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-import tensorflow as tf
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -29,13 +28,11 @@ MODEL_DIR = './models'
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 pth_url = Config.S3_PTH_MODEL_URL
-h5_url = Config.S3_H5_MODEL_URL
 
 pth_model_path = os.path.join(MODEL_DIR, 'resnet_model.pth')
-h5_model_path = os.path.join(MODEL_DIR, 'keras_model.h5')
 
-if not pth_url or not h5_url:
-    raise EnvironmentError("❌ S3 model URLs not set in .env")
+if not pth_url:
+    raise EnvironmentError("❌ S3 PTH model URL not set in .env")
 
 def download_file(url, local_path):
     if not os.path.exists(local_path):
@@ -44,28 +41,19 @@ def download_file(url, local_path):
         logging.info(f"✅ Downloaded {local_path} successfully.")
 
 download_file(pth_url, pth_model_path)
-download_file(h5_url, h5_model_path)
-
-# ---------------- Load Keras Model ----------------
-try:
-    model1 = tf.keras.models.load_model(h5_model_path, compile=False)
-    logging.info("✅ Keras model loaded successfully.")
-except Exception as e:
-    logging.error(f"❌ Error loading Keras model: {e}")
-    model1 = None
 
 # ---------------- Load PyTorch Model ----------------
-model2 = models.resnet18(pretrained=False)
-model2.fc = nn.Linear(model2.fc.in_features, 6)
+model = models.resnet18(pretrained=False)
+model.fc = nn.Linear(model.fc.in_features, 6)
 
 try:
     state_dict = torch.load(pth_model_path, map_location='cpu')
-    model2.load_state_dict(state_dict)
-    model2.eval()
+    model.load_state_dict(state_dict)
+    model.eval()
     logging.info("✅ PyTorch model loaded successfully.")
 except Exception as e:
     logging.error(f"❌ Error loading PyTorch model: {e}")
-    model2 = None
+    model = None
 
 # ---------------- ImageNet Pretrained Model for Cloth Detection ----------------
 imagenet_model = models.resnet18(pretrained=True)
@@ -83,18 +71,16 @@ imagenet_transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-
 # ---------------- Class Labels ----------------
-class_labels_model1 = ['Good', 'Objects', 'Hole', 'Oil Spot', 'Thread Error']
-class_labels_model2 = ['vertical', 'defect', 'hole', 'horizontal', 'lines', 'stain']
+class_labels = ['vertical', 'defect', 'hole', 'horizontal', 'lines', 'stain']
 CONFIDENCE_THRESHOLD = 0.6
 
 # ---------------- Cloth Detection ----------------
-def is_cloth_by_imagenet(img: Image.Image, allowed_keywords = [
+def is_cloth_by_imagenet(img: Image.Image, allowed_keywords=[
             'suit', 'shirt', 'jean', 'tshirt', 'fabric', 'apparel',
             'sock', 'pajama', 'trouser', 'shorts', 'cloth', 'jacket',
             'sweater', 'dress', 'skirt', 'kurta', 'blazer', 'undergarment',
-            'hoodie', 'vest', 'tracksuit', 'uniform','tick'
+            'hoodie', 'vest', 'tracksuit', 'uniform', 'tick'
         ]):
     transformed = imagenet_transform(img).unsqueeze(0)
     with torch.no_grad():
@@ -121,8 +107,8 @@ def preprocess_image(image_data):
 # ---------------- Prediction Route ----------------
 @image_bp.route('/predict_image', methods=['POST'])
 def predict_image():
-    if model1 is None or model2 is None:
-        return jsonify({'error': 'Model(s) not loaded'}), 500
+    if model is None:
+        return jsonify({'error': 'Model not loaded'}), 500
 
     try:
         data = request.get_json()
@@ -135,24 +121,16 @@ def predict_image():
         if not is_cloth_by_imagenet(img_pil):
             return jsonify({'error': 'Invalid image: no cloth detected'}), 400
 
-        # --- Keras Prediction ---
-        keras_input = np.expand_dims(img_array, axis=0)
-        prediction1 = model1.predict(keras_input)
-        idx1 = np.argmax(prediction1)
-        label1 = class_labels_model1[idx1]
-        confidence1 = float(prediction1[0][idx1])
-
         # --- PyTorch Prediction ---
         torch_input = torch.tensor(img_array.transpose((2, 0, 1)), dtype=torch.float32).unsqueeze(0)
         with torch.no_grad():
-            prediction2 = model2(torch_input)
-        confidence2, idx2 = torch.max(prediction2, 1)
-        label2 = class_labels_model2[idx2.item()]
-        confidence2 = float(confidence2.item())
+            prediction = model(torch_input)
+        confidence, idx = torch.max(prediction, 1)
+        label = class_labels[idx.item()]
+        confidence = float(confidence.item())
 
         result = {
-            'model1': {'label': label1, 'confidence': confidence1} if confidence1 >= CONFIDENCE_THRESHOLD else None,
-            'model2': {'label': label2, 'confidence': confidence2} if confidence2 >= CONFIDENCE_THRESHOLD else None
+            'model': {'label': label, 'confidence': confidence} if confidence >= CONFIDENCE_THRESHOLD else None
         }
 
         return jsonify(result)
