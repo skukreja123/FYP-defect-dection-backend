@@ -9,10 +9,9 @@ import logging
 from PIL import Image
 from torchvision import models, transforms
 import json
-import urllib.request
 import os
 from dotenv import load_dotenv
-from config import Config
+import urllib.request
 
 # Load environment variables
 load_dotenv()
@@ -23,31 +22,18 @@ image_bp = Blueprint('image', __name__)
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-# ---------------- Model Download from AWS S3 ----------------
-MODEL_DIR = './models'
-os.makedirs(MODEL_DIR, exist_ok=True)
-
-pth_url = Config.S3_PTH_MODEL_URL
-
-pth_model_path = os.path.join(MODEL_DIR, 'resnet_model.pth')
-
-if not pth_url:
-    raise EnvironmentError("❌ S3 PTH model URL not set in .env")
-
-def download_file(url, local_path):
-    if not os.path.exists(local_path):
-        logging.info(f"⬇️ Downloading {local_path} from S3...")
-        urllib.request.urlretrieve(url, local_path)
-        logging.info(f"✅ Downloaded {local_path} successfully.")
-
-download_file(pth_url, pth_model_path)
-
 # ---------------- Load PyTorch Model ----------------
+MODEL_PATH = './models/mixeddataset_resnet_classweights.pth'
+
+# Make sure the model file exists
+if not os.path.exists(MODEL_PATH):
+    raise EnvironmentError(f"❌ Model file not found at {MODEL_PATH}")
+
 model = models.resnet18(pretrained=False)
 model.fc = nn.Linear(model.fc.in_features, 6)
 
 try:
-    state_dict = torch.load(pth_model_path, map_location='cpu')
+    state_dict = torch.load(MODEL_PATH, map_location='cpu')
     model.load_state_dict(state_dict)
     model.eval()
     logging.info("✅ PyTorch model loaded successfully.")
@@ -72,16 +58,16 @@ imagenet_transform = transforms.Compose([
 ])
 
 # ---------------- Class Labels ----------------
-class_labels = ['vertical', 'defect', 'hole', 'horizontal', 'lines', 'stain']
+class_labels = ['vertical', 'defect-free', 'hole', 'horizontal', 'lines', 'stain']
 CONFIDENCE_THRESHOLD = 0.6
 
 # ---------------- Cloth Detection ----------------
 def is_cloth_by_imagenet(img: Image.Image, allowed_keywords=[
-            'suit', 'shirt', 'jean', 'tshirt', 'fabric', 'apparel',
-            'sock', 'pajama', 'trouser', 'shorts', 'cloth', 'jacket',
-            'sweater', 'dress', 'skirt', 'kurta', 'blazer', 'undergarment',
-            'hoodie', 'vest', 'tracksuit', 'uniform', 'tick'
-        ]):
+        'suit', 'shirt', 'jean', 'tshirt', 'fabric', 'apparel',
+        'sock', 'pajama', 'trouser', 'shorts', 'cloth', 'jacket',
+        'sweater', 'dress', 'skirt', 'kurta', 'blazer', 'undergarment',
+        'hoodie', 'vest', 'tracksuit', 'uniform', 'tick'
+    ]):
     transformed = imagenet_transform(img).unsqueeze(0)
     with torch.no_grad():
         outputs = imagenet_model(transformed)
@@ -97,8 +83,8 @@ def is_cloth_by_imagenet(img: Image.Image, allowed_keywords=[
 def preprocess_image(image_data):
     try:
         img = Image.open(io.BytesIO(base64.b64decode(image_data.split(',')[1]))).convert('RGB')
-        img_resized = img.resize((64, 64))
-        img_array = np.array(img_resized) / 255.0
+        img_resized = img.resize((224, 224))  # Resize to (224, 224) for ResNet
+        img_array = np.array(img_resized) / 255.0  # Normalize to [0, 1]
         return img_array, img
     except Exception as e:
         logging.error(f"❌ Error during image preprocessing: {e}")
@@ -118,8 +104,9 @@ def predict_image():
         image_data = data['image']
         img_array, img_pil = preprocess_image(image_data)
 
-        if not is_cloth_by_imagenet(img_pil):
-            return jsonify({'error': 'Invalid image: no cloth detected'}), 400
+        # # Check for cloth detection
+        # if not is_cloth_by_imagenet(img_pil):
+        #     return jsonify({'error': 'Invalid image: no cloth detected'}), 400
 
         # --- PyTorch Prediction ---
         torch_input = torch.tensor(img_array.transpose((2, 0, 1)), dtype=torch.float32).unsqueeze(0)

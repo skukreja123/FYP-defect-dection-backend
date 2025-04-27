@@ -9,7 +9,6 @@ import base64
 import logging
 import os
 import tempfile
-import urllib.request
 from config import Config
 
 # Initialize Blueprint
@@ -19,32 +18,20 @@ video_bp = Blueprint('video', __name__)
 logging.basicConfig(level=logging.INFO)
 
 # Constants
-class_labels = ['vertical', 'defect', 'hole', 'horizontal', 'lines', 'stain']
+class_labels = ['vertical', 'defect-free', 'hole', 'horizontal', 'lines', 'stain']
 num_classes = len(class_labels)
 CONFIDENCE_THRESHOLD = 0.6
 
-# Get S3 URL from environment variable
-S3_PTH_MODEL_URL = Config.S3_PTH_MODEL_URL
+# Local model path
 MODEL_LOCAL_PATH = "./models/mixeddataset_resnet_classweights.pth"
 os.makedirs(os.path.dirname(MODEL_LOCAL_PATH), exist_ok=True)
 
-if not S3_PTH_MODEL_URL:
-    raise EnvironmentError("❌ Environment variable 'S3_PTH_MODEL_URL' not set!")
-
-# Download model from S3
-def download_model_from_s3():
-    if not os.path.exists(MODEL_LOCAL_PATH):
-        logging.info("⬇️ Downloading model from S3...")
-        urllib.request.urlretrieve(S3_PTH_MODEL_URL, MODEL_LOCAL_PATH)
-        logging.info("✅ Model downloaded successfully.")
-
-download_model_from_s3()
-
-# Load model
+# Load model directly from local path
 model = models.resnet18(pretrained=False)
 model.fc = nn.Linear(model.fc.in_features, num_classes)
+
 try:
-    state_dict = torch.load(MODEL_LOCAL_PATH, map_location='cpu')
+    state_dict = torch.load(MODEL_LOCAL_PATH, map_location='cpu')  # Move to GPU if available
     model.load_state_dict(state_dict)
     model.eval()
     logging.info("✅ Model loaded successfully.")
@@ -52,14 +39,13 @@ except Exception as e:
     logging.error(f"❌ Failed to load model: {e}")
     model = None
 
-
-
 # Frame preprocessing
 transform = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize((64, 64)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+
 ])
 
 def preprocess_frame(frame):
@@ -93,7 +79,7 @@ def predict_video():
         os.remove(video_path)
         return jsonify({"error": "Failed to read video file"}), 500
 
-    frame_interval = 30
+    frame_interval = 15  # Adjusting frame interval to process every 15th frame
     frame_count = 0
 
     try:
@@ -124,4 +110,8 @@ def predict_video():
         cap.release()
         os.remove(video_path)
 
+    if not results:
+        return jsonify({"message": "No confident predictions found"}), 200
+
     return jsonify({"results": results})
+
