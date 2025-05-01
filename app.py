@@ -26,4 +26,4 @@ app.register_blueprint(contact_bp, url_prefix='/contact')
 
 if __name__ == '__main__':
     port = Config.PORT
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port,threaded=True)

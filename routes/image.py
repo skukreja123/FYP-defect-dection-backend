@@ -7,7 +7,7 @@ import numpy as np
 import io
 import base64
 import logging
-from PIL import Image
+from PIL import Image, ImageEnhance
 from torchvision import models, transforms
 import json
 import urllib.request
@@ -85,16 +85,16 @@ imagenet_transform = transforms.Compose([
 
 # ---------------- Class Labels ----------------
 class_labels_model1 = ['Good', 'Objects', 'Hole', 'Oil Spot', 'Thread Error']
-class_labels_model2 = ['vertical', 'defect', 'hole', 'horizontal', 'lines', 'stain']
+class_labels_model2 = ['vertical', 'defect-free', 'hole', 'horizontal', 'lines', 'stain']
 CONFIDENCE_THRESHOLD = 0.6
 
 # ---------------- Cloth Detection ----------------
-def is_cloth_by_imagenet(img: Image.Image, allowed_keywords = [
-            'suit', 'shirt', 'jean', 'tshirt', 'fabric', 'apparel',
-            'sock', 'pajama', 'trouser', 'shorts', 'cloth', 'jacket',
-            'sweater', 'dress', 'skirt', 'kurta', 'blazer', 'undergarment',
-            'hoodie', 'vest', 'tracksuit', 'uniform','tick'
-        ]):
+def is_cloth_by_imagenet(img: Image.Image, allowed_keywords=[
+    'suit', 'shirt', 'jean', 'tshirt', 'fabric', 'apparel',
+    'sock', 'pajama', 'trouser', 'shorts', 'cloth', 'jacket',
+    'sweater', 'dress', 'skirt', 'kurta', 'blazer', 'undergarment',
+    'hoodie', 'vest', 'tracksuit', 'uniform','tick'
+]):
     transformed = imagenet_transform(img).unsqueeze(0)
     with torch.no_grad():
         outputs = imagenet_model(transformed)
@@ -107,12 +107,42 @@ def is_cloth_by_imagenet(img: Image.Image, allowed_keywords = [
         return any(keyword in label.lower() for label in top_classes for keyword in allowed_keywords)
 
 # ---------------- Image Preprocessing ----------------
+# Define separate preprocessing for Keras model
+keras_preprocess_transform = transforms.Compose([
+    transforms.Resize((64, 64)),  # Resize to (64, 64) for Keras model
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+])
+
+# Define better preprocessing for PyTorch model
+preprocess_transform = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.CenterCrop(224),
+    transforms.ColorJitter(brightness=0.1, contrast=0.1),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+])
+
+def enhance_edges(img):
+    enhancer = ImageEnhance.Sharpness(img)
+    img = enhancer.enhance(2.0)
+    return img
+
 def preprocess_image(image_data):
     try:
         img = Image.open(io.BytesIO(base64.b64decode(image_data.split(',')[1]))).convert('RGB')
-        img_resized = img.resize((64, 64))
-        img_array = np.array(img_resized) / 255.0
-        return img_array, img
+        img = enhance_edges(img)
+        img_for_cloth_detection = img.copy()
+
+        # For Keras model, resize to (64, 64)
+        img_tensor_keras = keras_preprocess_transform(img)
+
+        # For PyTorch model, resize to (224, 224)
+        img_tensor_pytorch = preprocess_transform(img)
+
+        return img_tensor_keras, img_tensor_pytorch, img_for_cloth_detection
     except Exception as e:
         logging.error(f"❌ Error during image preprocessing: {e}")
         raise ValueError("Error processing the image.")
@@ -129,25 +159,30 @@ def predict_image():
             return jsonify({'error': 'Missing image data'}), 400
 
         image_data = data['image']
-        img_array, img_pil = preprocess_image(image_data)
-
-        if not is_cloth_by_imagenet(img_pil):
-            return jsonify({'error': 'Invalid image: no cloth detected'}), 400
+        print(f"🖼️ Received image data: {image_data[:30]}...")  # Log first 30 characters for debugging
+        img_tensor_keras, img_tensor_pytorch, img_pil = preprocess_image(image_data)
+        
+         # if not is_cloth_by_imagenet(img_pil):
+        #     return jsonify({'error': 'Invalid image: no cloth detected'}), 400
 
         # --- Keras Prediction ---
-        keras_input = np.expand_dims(img_array, axis=0)
+        keras_input = img_tensor_keras.unsqueeze(0).numpy()
+        keras_input = np.transpose(keras_input, (0, 2, 3, 1))  # (1, 64, 64, 3) -> (1, 64, 64, 3)
         prediction1 = model1.predict(keras_input)
         idx1 = np.argmax(prediction1)
         label1 = class_labels_model1[idx1]
         confidence1 = float(prediction1[0][idx1])
 
         # --- PyTorch Prediction ---
-        torch_input = torch.tensor(img_array.transpose((2, 0, 1)), dtype=torch.float32).unsqueeze(0)
+        torch_input = img_tensor_pytorch.unsqueeze(0)  # (1, 224, 224, 3)
         with torch.no_grad():
             prediction2 = model2(torch_input)
-        confidence2, idx2 = torch.max(prediction2, 1)
+            
+        outputs = F.softmax(prediction2, dim=1)
+        confidence2, idx2 = torch.max(outputs, 1)
         label2 = class_labels_model2[idx2.item()]
         confidence2 = float(confidence2.item())
+        
 
         result = {
             'model1': {'label': label1, 'confidence': confidence1} if confidence1 >= CONFIDENCE_THRESHOLD else None,
