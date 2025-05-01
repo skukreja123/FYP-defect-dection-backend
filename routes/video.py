@@ -109,6 +109,7 @@ def predict_video():
             success, frame = cap.read()
             if not success:
                 break
+            
 
             if frame_count % frame_interval == 0:
                 input_tensor = preprocess_frame(frame)
