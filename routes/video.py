@@ -1,16 +1,13 @@
+# BLUEPRINT: video_bp (video prediction)
 from flask import Blueprint, request, jsonify
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
 import numpy as np
 import cv2
-import io
-import base64
-import logging
-import os
-import tempfile
-import gdown
+import io, os, tempfile, base64, logging
 from config import Config
+
 from PIL import Image, ImageEnhance
 video_bp = Blueprint('video', __name__)
 
@@ -18,7 +15,12 @@ logging.basicConfig(level=logging.INFO)
 
 class_labels = ['vertical', 'defect-free', 'hole', 'horizontal', 'lines', 'stain']
 num_classes = len(class_labels)
+
+
+
 CONFIDENCE_THRESHOLD = 0.6
+FRAME_INTERVAL = 30
+
 
 GDRIVE_FILE_ID = Config.GDRIVE_MODEL_ID
 if not GDRIVE_FILE_ID:
@@ -37,15 +39,15 @@ def download_model_from_drive():
 download_model_from_drive()
 
 model = models.resnet18(pretrained=False)
-model.fc = nn.Linear(model.fc.in_features, num_classes)
+model.fc = nn.Linear(model.fc.in_features, len(CLASS_LABELS))
 try:
-    state_dict = torch.load(MODEL_LOCAL_PATH, map_location='cpu')
-    model.load_state_dict(state_dict)
+    model.load_state_dict(torch.load(MODEL_PATH, map_location='cpu'))
     model.eval()
-    logging.info("✅ Model loaded successfully.")
+    logging.info("✅ Video model loaded.")
 except Exception as e:
-    logging.error(f"❌ Failed to load model: {e}")
+    logging.error(f"❌ Error loading model: {e}")
     model = None
+
 
 # ✨ Improved preprocessing
 transform = transforms.Compose([
@@ -55,6 +57,7 @@ transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225]),
+
 ])
 
 def enhance_edges(img):
@@ -64,6 +67,7 @@ def enhance_edges(img):
 
 def preprocess_frame(frame):
     try:
+
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
         frame = cv2.fastNlMeansDenoisingColored(frame, None, 10, 10, 7, 21)  # Denoise
         
@@ -72,8 +76,9 @@ def preprocess_frame(frame):
         frame_pil = enhance_edges(frame_pil)
         
         return transform(frame_pil).unsqueeze(0)
+
     except Exception as e:
-        logging.error(f"❌ Error during frame preprocessing: {e}")
+        logging.error(f"❌ Frame preprocess failed: {e}")
         return None
 
 
@@ -81,54 +86,55 @@ def encode_image(frame):
     _, buffer = cv2.imencode('.jpg', frame)
     return base64.b64encode(buffer).decode('utf-8')
 
+
 @video_bp.route("/predict_video", methods=["POST"])
 def predict_video():
     if model is None:
         return jsonify({"error": "Model not loaded"}), 500
+    if 'video' not in request.files:
+        return jsonify({"error": "No video uploaded"}), 400
 
-    if "video" not in request.files:
-        return jsonify({"error": "No video file provided"}), 400
-
-    video_file = request.files["video"]
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
-        video_path = temp_video.name
+    video_file = request.files['video']
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+        video_path = tmp.name
         video_file.save(video_path)
 
     results = []
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         os.remove(video_path)
-        return jsonify({"error": "Failed to read video file"}), 500
+        return jsonify({"error": "Could not open video"}), 500
+
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
     frame_interval = int(fps * 1)  # 1 frame every second
 
+
     frame_count = 0
     try:
         while True:
-            success, frame = cap.read()
-            if not success:
+            ret, frame = cap.read()
+            if not ret:
                 break
-            
 
             if frame_count % frame_interval == 0:
+
                 input_tensor = preprocess_frame(frame)
                 if input_tensor is None:
                     continue
-
                 with torch.no_grad():
                     output = model(input_tensor)
-                    probabilities = torch.softmax(output, dim=1)
-                    confidence, predicted_class = torch.max(probabilities, 1)
-
-                    if confidence.item() >= CONFIDENCE_THRESHOLD:
+                    probs = torch.softmax(output, dim=1)
+                    conf, idx = torch.max(probs, 1)
+                    if conf.item() >= CONFIDENCE_THRESHOLD:
                         results.append({
+
                             "frame": encode_image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)),
                             "label": class_labels[predicted_class.item()],
                             "confidence": round(confidence.item(), 3),
                             "frame_number": frame_count
-                        })
 
+                        })
             frame_count += 1
     finally:
         cap.release()
@@ -180,3 +186,4 @@ def predict_frame():
     except Exception as e:
         logging.error(f"❌ Error processing frame: {e}")
         return jsonify({"error": str(e)}), 500
+
