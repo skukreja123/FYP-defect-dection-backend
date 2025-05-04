@@ -12,6 +12,7 @@ import tempfile
 import gdown
 from config import Config
 from PIL import Image, ImageEnhance
+from Utils.JWTtoken import token_required
 video_bp = Blueprint('video', __name__)
 
 logging.basicConfig(level=logging.INFO)
@@ -82,6 +83,7 @@ def encode_image(frame):
     return base64.b64encode(buffer).decode('utf-8')
 
 @video_bp.route("/predict_video", methods=["POST"])
+@token_required
 def predict_video():
     if model is None:
         return jsonify({"error": "Model not loaded"}), 500
@@ -140,6 +142,7 @@ def predict_video():
 
 
 @video_bp.route("/predict_frame", methods=["POST"])
+@token_required
 def predict_frame():
     if model is None:
         return jsonify({"error": "Model not loaded"}), 500

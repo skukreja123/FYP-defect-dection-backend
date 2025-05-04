@@ -1,5 +1,7 @@
 import jwt
 from datetime import datetime, timedelta
+from functools import wraps
+from flask import request, jsonify
 from config import Config
 
 def generate_token(email):
@@ -16,18 +18,25 @@ def decode_token(token):
         return None
 
 def token_required(f):
+    @wraps(f)
     def decorator(*args, **kwargs):
-        token = kwargs.get('token')
+        token = None
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+
         if not token:
-            return {'message': 'Token is missing!'}, 401
+            return jsonify({'message': 'Token is missing!'}), 401
 
         try:
             data = decode_token(token)
             if not data:
-                return {'message': 'Token is invalid or expired!'}, 401
+                return jsonify({'message': 'Token is invalid or expired!'}), 401
         except Exception as e:
-            return {'message': str(e)}, 401
+            return jsonify({'message': str(e)}), 401
 
+        # Attach decoded data (like email) to request context if needed
         return f(*args, **kwargs)
 
     return decorator

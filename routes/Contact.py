@@ -11,20 +11,18 @@ contact_bp = Blueprint('contact', __name__)
 @token_required
 def contact():
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        message = request.form['message']
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        message = data.get('message')
 
         if not name or not email or not message:
-            flash('All fields are required!', 'error')
-            return redirect(url_for('contact.contact'))
+            return {'error': 'All fields are required!'}, 400
 
         insert_contact(name, email, message)
-        flash('Contact submitted successfully!', 'success')
-        return redirect(url_for('contact.contact'))
+        return {'message': 'Contact submitted successfully!'}, 200
 
     contacts = get_all_contacts()
     return render_template('contact.html', contacts=contacts)
-
 
 

@@ -8,12 +8,13 @@ def create_contact_table():
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            message TEXT NOT NULL,
+            message TEXT NOT NULL
         )
     """)
     conn.commit()
     cur.close()
     conn.close()
+
     
 def get_contact_by_email(email):
     conn = get_db_connection()

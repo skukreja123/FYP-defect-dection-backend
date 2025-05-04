@@ -15,6 +15,7 @@ import os
 import gdown
 from dotenv import load_dotenv
 from config import Config
+from Utils.JWTtoken import token_required
 
 # Load environment variables
 load_dotenv()
@@ -57,6 +58,7 @@ except Exception as e:
 # ---------------- Load PyTorch Model ----------------
 model2 = models.resnet18(pretrained=False)
 model2.fc = nn.Linear(model2.fc.in_features, 6)
+
 
 try:
     state_dict = torch.load(pth_model_path, map_location='cpu')
@@ -149,6 +151,7 @@ def preprocess_image(image_data):
 
 # ---------------- Prediction Route ----------------
 @image_bp.route('/predict_image', methods=['POST'])
+@token_required
 def predict_image():
     if model1 is None or model2 is None:
         return jsonify({'error': 'Model(s) not loaded'}), 500
