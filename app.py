@@ -5,6 +5,7 @@ from routes.image import image_bp
 from routes.auth import auth_bp
 from models.User import create_user_table
 from models.Contact import create_contact_table
+from models.Frame import create_frame_table
 from routes.Contact import contact_bp
 from config import Config
 
@@ -14,6 +15,7 @@ CORS(app)
 
 create_user_table()
 create_contact_table()
+create_frame_table()
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"message": "Flask server is running."})

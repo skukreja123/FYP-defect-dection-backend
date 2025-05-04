@@ -4,8 +4,9 @@ from functools import wraps
 from flask import request, jsonify
 from config import Config
 
-def generate_token(email):
+def generate_token(email, user_id):
     payload = {
+        "user_id": user_id,
         'email': email,
         'exp': datetime.utcnow() + timedelta(hours=2)
     }
@@ -31,12 +32,15 @@ def token_required(f):
 
         try:
             data = decode_token(token)
+            print(f"Decoded token data: {data}")  # Log decoded data for debugging
+            current_user = data['user_id'] if data else None
             if not data:
                 return jsonify({'message': 'Token is invalid or expired!'}), 401
         except Exception as e:
             return jsonify({'message': str(e)}), 401
 
         # Attach decoded data (like email) to request context if needed
-        return f(*args, **kwargs)
+        print(f"Current user ID: {current_user}")
+        return f(current_user, *args, **kwargs)
 
     return decorator

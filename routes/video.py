@@ -13,6 +13,7 @@ import gdown
 from config import Config
 from PIL import Image, ImageEnhance
 from Utils.JWTtoken import token_required
+from models.Frame import insert_frame_with_predictions
 video_bp = Blueprint('video', __name__)
 
 logging.basicConfig(level=logging.INFO)
@@ -84,7 +85,7 @@ def encode_image(frame):
 
 @video_bp.route("/predict_video", methods=["POST"])
 @token_required
-def predict_video():
+def predict_video(current_user):
     if model is None:
         return jsonify({"error": "Model not loaded"}), 500
 
@@ -103,34 +104,53 @@ def predict_video():
         return jsonify({"error": "Failed to read video file"}), 500
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    frame_interval = int(fps * 1)  # 1 frame every second
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = total_frames / fps
 
-    frame_count = 0
+    second = 0
     try:
-        while True:
-            success, frame = cap.read()
-            if not success:
-                break
+        with torch.no_grad():
+            while second < duration:
+                cap.set(cv2.CAP_PROP_POS_MSEC, second * 1000)
+                success, frame = cap.read()
+                if not success:
+                    break
 
-            if frame_count % frame_interval == 0:
-                input_tensor = preprocess_frame(frame)
+                # Resize frame if needed (model-specific size, e.g. 224x224)
+                frame_resized = cv2.resize(frame, (224, 224))
+
+                input_tensor = preprocess_frame(frame_resized)
                 if input_tensor is None:
+                    second += 1
                     continue
 
-                with torch.no_grad():
-                    output = model(input_tensor)
-                    probabilities = torch.softmax(output, dim=1)
-                    confidence, predicted_class = torch.max(probabilities, 1)
+                output = model(input_tensor)
+                probabilities = torch.softmax(output, dim=1)
+                confidence, predicted_class = torch.max(probabilities, 1)
 
-                    if confidence.item() >= CONFIDENCE_THRESHOLD:
-                        results.append({
-                            "frame": encode_image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)),
-                            "label": class_labels[predicted_class.item()],
-                            "confidence": round(confidence.item(), 3),
-                            "frame_number": frame_count
-                        })
+                if confidence.item() >= CONFIDENCE_THRESHOLD:
+                    encoded = encode_image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    confidence_score = round(confidence.item(), 3)
+                    label = class_labels[predicted_class.item()]
 
-            frame_count += 1
+                    results.append({
+                        "frame": encoded,
+                        "label": label,
+                        "confidence": confidence_score,
+                        "frame_number": int(second * fps)
+                    })
+
+                    frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
+                    insert_frame_with_predictions(
+                        user_id=current_user,
+                        frame_data=frame_bytes,
+                        keras_label=None,
+                        keras_confidence=None,
+                        pytorch_label=label,
+                        pytorch_confidence=confidence_score
+                    )
+
+                second += 1
     finally:
         cap.release()
         os.remove(video_path)
@@ -143,7 +163,7 @@ def predict_video():
 
 @video_bp.route("/predict_frame", methods=["POST"])
 @token_required
-def predict_frame():
+def predict_frame(current_user):
     if model is None:
         return jsonify({"error": "Model not loaded"}), 500
 
@@ -151,6 +171,7 @@ def predict_frame():
         return jsonify({"error": "No frame file provided"}), 400
 
     frame_file = request.files["frame"]
+    print(f"Received frame file: {frame_file}")
     try:
         frame_bytes = frame_file.read()
         frame_np = np.frombuffer(frame_bytes, np.uint8)
@@ -160,6 +181,7 @@ def predict_frame():
             return jsonify({"error": "Failed to decode frame"}), 400
 
         input_tensor = preprocess_frame(frame)
+        print(f"Preprocessed frame shape: {input_tensor.shape}")
         if input_tensor is None:
             return jsonify({"error": "Failed to preprocess frame"}), 400
 
@@ -176,6 +198,7 @@ def predict_frame():
                 }
             else:
                 result = {"message": "No significant defect detected in frame."}
+        
 
         return jsonify(result)
 

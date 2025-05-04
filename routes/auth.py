@@ -26,7 +26,7 @@ def signin():
 
     user = get_user_by_email(email)
     if user and bcrypt.checkpw(password.encode('utf-8'), user[2].encode('utf-8')):
-        token = generate_token(email)
+        token = generate_token(email,user[0])
         return jsonify({'token': token}), 200
     return jsonify({'error': 'Invalid credentials'}), 401
 

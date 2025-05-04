@@ -16,6 +16,7 @@ import gdown
 from dotenv import load_dotenv
 from config import Config
 from Utils.JWTtoken import token_required
+from models.Frame import insert_frame_with_predictions , get_frame_by_id, get_all_frames_by_user_id, delete_frame_by_id
 
 # Load environment variables
 load_dotenv()
@@ -152,7 +153,8 @@ def preprocess_image(image_data):
 # ---------------- Prediction Route ----------------
 @image_bp.route('/predict_image', methods=['POST'])
 @token_required
-def predict_image():
+def predict_image(user_id):
+    # print(f"🔑 User ID: {user_id}")  # Log user ID for debugging
     if model1 is None or model2 is None:
         return jsonify({'error': 'Model(s) not loaded'}), 500
 
@@ -163,6 +165,7 @@ def predict_image():
 
         image_data = data['image']
         print(f"🖼️ Received image data: {image_data[:30]}...")  # Log first 30 characters for debugging
+        
         img_tensor_keras, img_tensor_pytorch, img_pil = preprocess_image(image_data)
         
          # if not is_cloth_by_imagenet(img_pil):
@@ -191,6 +194,17 @@ def predict_image():
             'model1': {'label': label1, 'confidence': confidence1} if confidence1 >= CONFIDENCE_THRESHOLD else None,
             'model2': {'label': label2, 'confidence': confidence2} if confidence2 >= CONFIDENCE_THRESHOLD else None
         }
+                # Assuming you have `user_id` from the token or request context
+        frame_bytes = base64.b64decode(image_data.split(',')[1])
+        frame_id = insert_frame_with_predictions(
+            user_id=user_id,
+            frame_data=frame_bytes,
+            keras_label=label1 if confidence1 >= CONFIDENCE_THRESHOLD else None,
+            keras_confidence=confidence1 if confidence1 >= CONFIDENCE_THRESHOLD else None,
+            pytorch_label=label2 if confidence2 >= CONFIDENCE_THRESHOLD else None,
+            pytorch_confidence=confidence2 if confidence2 >= CONFIDENCE_THRESHOLD else None,
+        )
+
 
         return jsonify(result)
 
@@ -199,3 +213,59 @@ def predict_image():
     except Exception as e:
         logging.error(f"❌ Internal error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+
+
+@image_bp.route('/<int:frame_id>', methods=['GET'])
+@token_required
+def get_image(frame_id):
+    frame = get_frame_by_id(frame_id)
+    
+    if frame is None:
+        return jsonify({'error': 'Frame not found'}), 404
+
+    frame_data = frame[2]  # assuming frame_data is the third column (index 2)
+
+    encoded_img = base64.b64encode(frame_data).decode('utf-8')
+    return jsonify({
+        'image_base64': f"data:image/jpeg;base64,{encoded_img}",
+        'keras_label': frame[3],
+        'keras_confidence': frame[4],
+        'pytorch_label': frame[5],
+        'pytorch_confidence': frame[6]
+    })
+    
+    
+@image_bp.route('/All_frame', methods=['GET'])
+@token_required
+def get_all_frames(user_id):
+    all_frames = get_all_frames_by_user_id(user_id)
+    if all_frames is None:
+         return jsonify({'error': 'No frames found for this user'}), 404
+     
+    all_frames_data = []
+    for frame in all_frames:
+        frame_data = frame[2]
+        encoded_img = base64.b64encode(frame_data).decode('utf-8')
+        all_frames_data.append({
+            'frame_id': frame[0],
+            'image_base64': f"data:image/jpeg;base64,{encoded_img}",
+            'keras_label': frame[3],
+            'keras_confidence': frame[4],
+            'pytorch_label': frame[5],
+            'pytorch_confidence': frame[6]
+        })
+    return jsonify(all_frames_data), 200
+
+
+@image_bp.route('/delete_frame/<int:frame_id>', methods=['DELETE'])
+def delete_frame(frame_id):
+    try:
+        print(f"🗑️ Deleting frame with ID: {frame_id}")  # Log frame ID for debugging
+        delete_frame_by_id(frame_id)
+        return jsonify({'message': 'Frame deleted successfully'}), 200
+    except Exception as e:
+        logging.error(f"❌ Error deleting frame: {e}")
+        return jsonify({'error': 'Error deleting frame'}), 500
+    
