@@ -1,89 +1,98 @@
-🧵 Fabric Defect Detection – Backend
-This repository contains the backend API for a real-time fabric defect detection system, developed using Flask and powered by a ResNet deep learning model. The system enables textile manufacturers to automate visual inspection of fabrics for common defects such as holes, stains, and pattern irregularities. It works in tandem with a React-based frontend, creating a full-stack solution for industrial-scale deployment.
+# Fabric Defect Detection – Backend API
 
-📌 Features
-🎯 ResNet-Based Classification: Robust fabric image classification using a fine-tuned ResNet model trained on real textile datasets.
+This repository contains the backend API for a **real-time fabric defect detection system**, developed using **Flask** and powered by a fine-tuned **ResNet deep learning model**. The system helps textile manufacturers automate the visual inspection of fabrics to identify defects such as holes, stains, and pattern irregularities.
 
-🧠 Deep Learning Integration: Loads a .pth PyTorch model to detect and classify defects.
+It pairs with a React-based frontend, delivering a full-stack solution for industrial-scale fabric quality control.
 
-🔗 API Ready: Clean and simple REST API endpoints for image upload and result retrieval.
+---
 
-🗃️ PostgreSQL Database: Logs predictions, images, and timestamps using SQLAlchemy ORM.
+## 🚀 Features
 
-⚡ Frontend Integration: Works seamlessly with the React frontend – Frontend Repo
+- 🎯 **ResNet-Based Classification:** Robust classification of fabric defects using a fine-tuned ResNet model trained on real textile datasets.
+- 🧠 **Deep Learning Integration:** Loads a `.pth` PyTorch model for defect detection and classification.
+- 🔗 **REST API Ready:** Clean endpoints for image upload and retrieving prediction results.
+- 🗃️ **PostgreSQL Database:** Logs predictions, images, and timestamps via SQLAlchemy ORM.
+- ⚡ **Frontend Integration:** Works seamlessly with the React frontend (link below).
+- 📁 **Modular & Scalable:** Designed for easy maintenance and future enhancements.
 
-📁 Modular Structure: Designed for scalability and maintainability.
+---
 
-🧠 Model & Datasets
-The ResNet model was trained using two high-quality fabric datasets:
+## 🧠 Model & Datasets
 
-Fabric Defect Dataset – Kaggle
-Includes diverse real-world examples of fabric defects.
+- **Pre-trained Model:** `model.pth` (place inside `./model/` folder) — used for making predictions.
+- **Datasets Used for Training:**
+  - [Fabric Defect Dataset – Kaggle](https://www.kaggle.com/datasets)
+  - [TILDA 400 Patches – Kaggle](https://www.kaggle.com/datasets)
 
-TILDA 400 Patches – Kaggle
-Offers structured patches useful for preprocessing and augmentation.
+---
 
-📦 Pre-trained model (model.pth)
-Download and place it in the ./model/ directory. This file is required for prediction.
+## 📁 Project Structure
 
-📁 Project Structure
-graphql
-Copy
-Edit
+
 FYP-defect-detection-backend/
-├── app.py                  # Flask app entry point
+├── app.py # Flask app entry point
 ├── model/
-│   └── model.pth           # Trained ResNet model
+│ └── model.pth # Trained ResNet model
 ├── database/
-│   └── models.py           # SQLAlchemy models for PostgreSQL
+│ └── models.py # SQLAlchemy models for PostgreSQL
 ├── utils/
-│   └── preprocessing.py    # Image preprocessing functions
-│   └── predict.py          # Model loading and prediction logic
-├── static/uploads/         # Uploaded images saved here
-├── config.py               # Database URI and environment configs
-├── requirements.txt        # Python dependencies
-└── README.md               # Project documentation
-🚀 Setup Instructions
-1. Clone the Repository
-bash
-Copy
-Edit
-git clone https://github.com/skukreja123/FYP-defect-dection-backend.git
-cd FYP-defect-dection-backend
-2. Set Up Virtual Environment
+│ ├── preprocessing.py # Image preprocessing functions
+│ └── predict.py # Model loading and prediction logic
+├── static/uploads/ # Uploaded images directory
+├── config.py # Configurations (DB URI, env variables)
+├── requirements.txt # Python dependencies
+└── README.md # Project documentation
+
+
+
+---
+
+## ⚙️ Setup Instructions
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/skukreja123/FYP-defect-dection-backend.git
+   cd FYP-defect-dection-backend
+
+Set up a virtual environment:
+
 bash
 Copy
 Edit
 python -m venv venv
-source venv/bin/activate    # On Windows: venv\Scripts\activate
-3. Install Dependencies
+source venv/bin/activate       # Windows: venv\Scripts\activate
+Install dependencies:
+
 bash
 Copy
 Edit
 pip install -r requirements.txt
-4. Configure PostgreSQL
-Update your config.py:
+Configure PostgreSQL:
+
+Edit config.py and update the database URI:
 
 python
 Copy
 Edit
 DATABASE_URI = 'postgresql://username:password@localhost/fabric_defects'
-Then create the database and run migrations (if any).
+Then create the database and run migrations if necessary.
 
-5. Run the Flask Server
+Run the Flask server:
+
 bash
 Copy
 Edit
 python app.py
-By default, it runs on http://127.0.0.1:5000/.
+The API will be available at http://127.0.0.1:5000/.
 
 🧪 API Endpoints
-➤ POST /upload
-Description: Upload a fabric image for prediction.
+POST /upload
+Description: Upload a fabric image for defect prediction.
 
 Form Data:
 
-image: JPEG/PNG file
+image — JPEG or PNG file.
 
 Response:
 
@@ -94,8 +103,8 @@ Edit
   "prediction": "Hole",
   "confidence": 0.94
 }
-➤ GET /results
-Description: Retrieve logged prediction history (if implemented).
+GET /results
+Description: Retrieve the history of logged predictions (if implemented).
 
 Response: JSON list of predictions.
 
@@ -107,7 +116,13 @@ Database	PostgreSQL, SQLAlchemy
 Dev Tools	Postman, Git, Virtualenv
 
 📸 Sample Prediction Output
-<img src="https://user-images.githubusercontent.com/sample/output.png" alt="Sample Prediction" width="500"/>
+
+
 🤝 Contributors
 Sahil Kukreja – Developer, Model Trainer, Backend Engineer
-GitHub
+Areeb – Developer, Model Trainer, Backend Engineer
+Mustafa – Developer, Model Trainer, Backend Engineer
+GitHub Profile
+
+🔗 Related Repositories
+Frontend: React Fabric Defect Detection Frontend (https://github.com/skukreja123/FYP-defect-detection-frontend)
