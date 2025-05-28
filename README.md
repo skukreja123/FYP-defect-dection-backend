@@ -21,8 +21,8 @@ It pairs with a React-based frontend, delivering a full-stack solution for indus
 
 - **Pre-trained Model:** `model.pth` (place inside `./model/` folder) — used for making predictions.
 - **Datasets Used for Training:**
-  - [Fabric Defect Dataset – Kaggle](https://www.kaggle.com/datasets)
-  - [TILDA 400 Patches – Kaggle](https://www.kaggle.com/datasets)
+  - [Fabric Defect Dataset – Kaggle](https://www.kaggle.com/datasets/k213080/fabric-defect-dataset)
+  - [TILDA 400 Patches – Kaggle](https://www.kaggle.com/datasets/angelolmg/tilda-400-64x64-patches)
 
 ---
 
