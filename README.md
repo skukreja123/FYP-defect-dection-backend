@@ -55,17 +55,17 @@ FYP-defect-detection-backend/
    git clone https://github.com/skukreja123/FYP-defect-dection-backend.git
    cd FYP-defect-dection-backend
 
-Set up a virtual environment:
+## Set up a virtual environment:
 
 python -m venv venv
 source venv/bin/activate       # Windows: venv\Scripts\activate
 
 
-Install dependencies:
+## Install dependencies:
 
 pip install -r requirements.txt
 
-Configure PostgreSQL:
+## Configure PostgreSQL:
 
 Edit config.py and update the database URI:
 
@@ -74,7 +74,7 @@ DATABASE_URI = 'postgresql://username:password@localhost/fabric_defects'
 
 Then create the database and run migrations if necessary.
 
-Run the Flask server:
+## Run the Flask server:
 
 
 python app.py
@@ -116,14 +116,15 @@ Dev Tools	Postman, Git, Virtualenv
 
 
 
-🤝 Contributors
+🤝 ## Contributors
+
 Sahil Kukreja – Developer, Model Trainer, Backend Engineer
 
 Areeb – Developer, Model Trainer, Backend Engineer
 
 Mustafa – Developer, Model Trainer, Backend Engineer
 
-GitHub Profile
+## GitHub Profile
 
 🔗 Related Repositories
 Frontend: React Fabric Defect Detection Frontend (https://github.com/skukreja123/FYP-defect-detection-frontend)
