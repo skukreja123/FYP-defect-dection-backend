@@ -81,11 +81,11 @@ python app.py
 
 The API will be available at http://127.0.0.1:5000/.
 
-🧪 API Endpoints
+## 🧪 API Endpoints
 POST /upload
 Description: Upload a fabric image for defect prediction.
 
-Form Data:
+## Form Data:
 
 image — JPEG or PNG file.
 
@@ -96,12 +96,12 @@ Response:
 }
 
 
-GET /results
+## GET /results
 Description: Retrieve the history of logged predictions (if implemented).
 
 Response: JSON list of predictions.
 
-🛠 Technologies Used
+## 🛠 Technologies Used
 
 Layer	Tools
 Backend API	Flask , Flask-CORS
@@ -110,7 +110,7 @@ Database	PostgreSQL, SQLAlchemy
 Dev Tools	Postman, Git, Virtualenv
 
 
-📸 Sample Prediction Output:
+## 📸 Sample Prediction Output:
 
 ![image](https://github.com/user-attachments/assets/590ced5e-dc72-4668-bc0a-6d3dcb31ed96)
 
