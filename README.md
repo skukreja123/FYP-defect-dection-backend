@@ -116,13 +116,21 @@ Dev Tools	Postman, Git, Virtualenv
 
 
 
-🤝 ## Contributors
+---
 
-Sahil Kukreja – Developer, Model Trainer, Backend Engineer
+## 🤝 Contributors
+
+  Sahil Kukreja – Developer, Model Trainer, Backend Engineer
+   [GitHub Profile](https://github.com/skukreja123)
 
 Areeb – Developer, Model Trainer, Backend Engineer
+ [GitHub Profile](https://github.com/areebbinnadeem)
 
 Mustafa – Developer, Model Trainer, Backend Engineer
+[GitHub Profile](https://github.com/MustafaHashmani)
+ 
+
+---
 
 ## GitHub Profile
 
