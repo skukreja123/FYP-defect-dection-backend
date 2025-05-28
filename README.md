@@ -57,33 +57,28 @@ FYP-defect-detection-backend/
 
 Set up a virtual environment:
 
-bash
-Copy
-Edit
 python -m venv venv
 source venv/bin/activate       # Windows: venv\Scripts\activate
+
+
 Install dependencies:
 
-bash
-Copy
-Edit
 pip install -r requirements.txt
+
 Configure PostgreSQL:
 
 Edit config.py and update the database URI:
 
-python
-Copy
-Edit
 DATABASE_URI = 'postgresql://username:password@localhost/fabric_defects'
+
+
 Then create the database and run migrations if necessary.
 
 Run the Flask server:
 
-bash
-Copy
-Edit
+
 python app.py
+
 The API will be available at http://127.0.0.1:5000/.
 
 🧪 API Endpoints
@@ -95,25 +90,25 @@ Form Data:
 image — JPEG or PNG file.
 
 Response:
-
-json
-Copy
-Edit
 {
   "prediction": "Hole",
   "confidence": 0.94
 }
+
+
 GET /results
 Description: Retrieve the history of logged predictions (if implemented).
 
 Response: JSON list of predictions.
 
 🛠 Technologies Used
+
 Layer	Tools
-Backend API	Flask, Flask-CORS
+Backend API	Flask , Flask-CORS
 Deep Learning	PyTorch, ResNet
 Database	PostgreSQL, SQLAlchemy
 Dev Tools	Postman, Git, Virtualenv
+
 
 📸 Sample Prediction Output
 
