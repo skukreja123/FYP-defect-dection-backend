@@ -110,7 +110,10 @@ Database	PostgreSQL, SQLAlchemy
 Dev Tools	Postman, Git, Virtualenv
 
 
-📸 Sample Prediction Output
+📸 Sample Prediction Output:
+
+![image](https://github.com/user-attachments/assets/590ced5e-dc72-4668-bc0a-6d3dcb31ed96)
+
 
 
 🤝 Contributors
